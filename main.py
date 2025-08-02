@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
+from app.api.endpoints import router
 
 app = FastAPI(
     title="HackRX Insurance Policy API",
@@ -8,7 +8,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,21 +16,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import and include the router
-try:
-    from app.api.endpoints import router
-    app.include_router(router, prefix="/api/v1")
-    print("✅ HackRX router loaded successfully!")
-except ImportError as e:
-    print(f"❌ Router import failed: {e}")
+# Include the API router - THIS WAS MISSING
+app.include_router(router, prefix="/api/v1")
 
 @app.get("/")
-async def root():
+def root():
     return {
-        "message": "HackRX Insurance Policy API",
+        "message": "HackRX Insurance Policy API", 
         "version": "1.0.0",
         "docs": "/docs"
     }
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
