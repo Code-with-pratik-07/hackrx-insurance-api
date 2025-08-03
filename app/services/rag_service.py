@@ -34,3 +34,4 @@ class RAGService:
             answers.append(answer)
         
         return HackRXResponse(answers=answers)
+

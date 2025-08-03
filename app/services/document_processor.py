@@ -3,14 +3,30 @@ import tempfile
 import os
 from typing import List, Dict, Any, Tuple
 from pypdf import PdfReader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+class SimpleTextSplitter:
+    def __init__(self, chunk_size=1000, chunk_overlap=200):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+    
+    def split_text(self, text: str) -> List[str]:
+        """Simple text splitter without LangChain dependency"""
+        chunks = []
+        start = 0
+        
+        while start < len(text):
+            end = start + self.chunk_size
+            chunk = text[start:end]
+            chunks.append(chunk)
+            start = end - self.chunk_overlap
+            
+        return [chunk for chunk in chunks if chunk.strip()]
 
 class DocumentProcessor:
     def __init__(self):
-        self.text_splitter = RecursiveCharacterTextSplitter(
+        self.text_splitter = SimpleTextSplitter(
             chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
+            chunk_overlap=200
         )
     
     def download_document(self, url: str) -> bytes:
@@ -32,13 +48,10 @@ class DocumentProcessor:
         try:
             # Extract text from PDF
             reader = PdfReader(tmp_file_path)
-            full_text = ""
             
             for page_num, page in enumerate(reader.pages):
                 page_text = page.extract_text()
-                full_text += page_text + "\n"
                 
-                # Store page-level metadata
                 if page_text.strip():
                     documents.append(page_text)
                     metadata.append({
@@ -49,7 +62,6 @@ class DocumentProcessor:
                     })
         
         finally:
-            # Clean up temporary file
             os.unlink(tmp_file_path)
         
         # Split into chunks

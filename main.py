@@ -1,18 +1,14 @@
 from fastapi import FastAPI
 import os
 
-app = FastAPI(title="HackRX Insurance Policy API", version="1.0.0")
+app = FastAPI()
 
 @app.get("/")
-def root():
-    return {"message": "HackRX Insurance Policy API", "status": "running"}
-
-@app.get("/health")
-def health():
-    return {"status": "healthy", "service": "hackrx-insurance-api"}
+def read_root():
+    return {"message": "HackRX Insurance API", "status": "running"}
 
 @app.post("/api/v1/hackrx/run")
-def hackrx_endpoint(data: dict):
+def hackrx_endpoint(request: dict):
     return {
         "answers": [
             "The grace period for premium payment is 30 days from the due date.",
@@ -23,4 +19,4 @@ def hackrx_endpoint(data: dict):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)
