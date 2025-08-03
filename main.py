@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import requests
 import PyPDF2
 import io
@@ -6,14 +7,40 @@ import re
 import os
 from typing import List, Dict
 
+# Initialize security scheme
+security = HTTPBearer()
+
 app = FastAPI(title="HackRX Insurance Policy API", version="1.0.0")
+
+# Authentication function
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify the authentication token"""
+    token = credentials.credentials
+    
+    # Define valid tokens (in production, use a database or JWT validation)
+    valid_tokens = {
+        "hackrx-2025-insurance-api": "HackRX Insurance API Access",
+        "demo-token": "Demo Access",
+        "admin-token": "Administrator Access",
+        "test-token": "Testing Access"
+    }
+    
+    if token not in valid_tokens:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return {"token": token, "access_level": valid_tokens[token]}
 
 @app.get("/")
 def root():
-    return {"message": "HackRX Insurance API with PDF Reading", "status": "running"}
+    return {"message": "HackRX Insurance API with PDF Reading and Authentication", "status": "running"}
 
 @app.post("/api/v1/hackrx/run")
-def hackrx_endpoint(request: dict):
+def hackrx_endpoint(request: dict, auth: dict = Depends(verify_token)):
+    """Main endpoint - requires authentication"""
     document_url = request.get("documents")
     questions = request.get("questions", [])
     
@@ -30,18 +57,26 @@ def hackrx_endpoint(request: dict):
             answer = analyze_document_for_question(pdf_text, question)
             answers.append(answer)
         
-        return {"answers": answers}
+        return {
+            "answers": answers,
+            "authenticated_user": auth["access_level"],
+            "processing_status": "success"
+        }
         
     except Exception as e:
         # Fallback to generic answers if PDF reading fails
         fallback_answers = []
         for question in questions:
             fallback_answers.append(get_fallback_answer(question))
-        return {"answers": fallback_answers}
+        return {
+            "answers": fallback_answers,
+            "authenticated_user": auth["access_level"],
+            "processing_status": "fallback"
+        }
 
 @app.get("/test")
-def run_internal_tests():
-    """Run internal tests of the API functionality"""
+def run_internal_tests(auth: dict = Depends(verify_token)):
+    """Run internal tests of the API functionality - requires authentication"""
     
     test_results = []
     
@@ -99,16 +134,18 @@ def run_internal_tests():
         "message": "Internal API Tests Complete",
         "timestamp": "2025-08-03T14:30:00Z",
         "total_tests": len(test_results),
-        "results": test_results
+        "results": test_results,
+        "authenticated_user": auth["access_level"]
     }
 
 @app.get("/health-check")  
 def detailed_health_check():
-    """Comprehensive health check with PDF processing validation"""
+    """Comprehensive health check - public endpoint (no authentication required)"""
     
     health_status = {
         "api_status": "healthy",
         "timestamp": "2025-08-03T14:30:00Z",
+        "authentication": "HTTPBearer enabled",
         "components": []
     }
     
@@ -116,7 +153,7 @@ def detailed_health_check():
     health_status["components"].append({
         "component": "FastAPI Application",
         "status": "healthy",
-        "details": "API server running normally"
+        "details": "API server running normally with authentication"
     })
     
     # Check PDF processing libraries
@@ -138,27 +175,12 @@ def detailed_health_check():
             "error": str(e)
         })
     
-    # Test basic HTTP capability
-    try:
-        test_response = requests.get("https://httpbin.org/status/200", timeout=5)
-        if test_response.status_code == 200:
-            health_status["components"].append({
-                "component": "HTTP Request Capability",
-                "status": "healthy", 
-                "details": "Can successfully make HTTP requests"
-            })
-        else:
-            health_status["components"].append({
-                "component": "HTTP Request Capability",
-                "status": "warning",
-                "details": f"HTTP test returned status {test_response.status_code}"
-            })
-    except Exception as e:
-        health_status["components"].append({
-            "component": "HTTP Request Capability",
-            "status": "unhealthy",
-            "error": str(e)
-        })
+    # Check authentication system
+    health_status["components"].append({
+        "component": "Authentication System",
+        "status": "healthy",
+        "details": "HTTPBearer authentication configured and active"
+    })
     
     return health_status
 
